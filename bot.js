@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { Telegraf, Markup } = require('telegraf');
+const fetch = require('node-fetch');
 
 const app = express();
 
