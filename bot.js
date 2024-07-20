@@ -1,7 +1,10 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
 const { Telegraf, Markup } = require('telegraf');
+
+const app = express();
 
 let allowedUsernames = [];
 try {
@@ -12,42 +15,61 @@ try {
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-bot.use((ctx, next) => {
-    const username = ctx.from.username;
+bot.use((bot, next) => {
+    const username = bot.from.username;
     if (allowedUsernames.includes(username)) {
         return next(); 
     } else {
-        ctx.reply('Sorry, you are not authorized to use this bot.');
+        bot.reply('Sorry, you are not authorized to use this bot.');
         return;
     }
 });
 
-bot.start((ctx) => {
-    ctx.reply('Did you forget ?', Markup.keyboard([
+bot.start((bot) => {
+    bot.reply('Did you forget ?', Markup.keyboard([
         ['I forgot !']
     ]).resize());
 });
 
-bot.hears('I forgot !', (ctx) => {
+bot.hears('I forgot !', (bot) => {
     const photoPath = path.join(__dirname, `photos/${getRandomInt(1, 16)}.jpg`);
-    ctx.replyWithPhoto({ source: photoPath }, {caption: 'I love you !!! ❤️'})
+    bot.replyWithPhoto({ source: photoPath }, {caption: 'I love you !!! ❤️'})
 });
 
-bot.hears('I miss you', (ctx) => {
-    ctx.reply('I miss you too, my beautiful love ❤️')
+bot.hears('I miss you', (bot) => {
+    bot.reply('I miss you too, my beautiful love ❤️')
 });
 
 
-if (process.env.NODE_ENV === 'production') {
-    bot.launch({
-        webhook: {
-            domain: process.env.HEROKU_APP_URL,
-            port: process.env.PORT
-        }
-    });
-} else {
-    bot.launch();
-}
+bot.launch();
+
+app.use(express.json());
+
+
+app.post('/webhook', (req, res) => {
+    bot.handleUpdate(req.body);
+    res.sendStatus(200);
+});
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
+const setWebhook = async () => {
+    try {
+        const webhookUrl = `https://${process.env.PROJECT_DOMAIN}.glitch.me/webhook`;
+        const response = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/setWebhook?url=${webhookUrl}`);
+        const result = await response.json();
+        console.log('Webhook set:', result);
+    } catch (error) {
+        console.error('Error setting webhook:', error);
+    }
+};
+
+setWebhook();
+
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
